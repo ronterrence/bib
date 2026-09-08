@@ -25,20 +25,77 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navigationPrincipale">
-        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
-          <li class="nav-item"><a class="nav-link" href="{% url 'catalogue:liste' %}"><i class="bi bi-search me-1"></i>Catalogue</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'circulation:guichet' %}"><i class="bi bi-arrow-left-right me-1"></i>Guichet</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}"><i class="bi bi-gear me-1"></i>Admin</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'relances:dashboard' %}"><i class="bi bi-envelope-exclamation me-1"></i>Relances</a></li>
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+          <!-- OPAC : accessible à tous -->
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'catalogue:liste' %}">
+              <i class="bi bi-search me-1"></i>Catalogue
+            </a>
+          </li>
+
+          <!-- Guichet : masqué ou désactivé pour les non-habilités -->
+          {% if user.is_authenticated and user.profil.a_acces_circulation %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'circulation:guichet' %}">
+                <i class="bi bi-arrow-left-right me-1"></i>Guichet
+              </a>
+            </li>
+          {% endif %}
+
+          <!-- Admin et Relances : réservés au personnel (is_staff) -->
+          {% if user.is_staff %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'relances:dashboard' %}">
+                <i class="bi bi-envelope-exclamation me-1"></i>Relances
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin:index' %}">
+                <i class="bi bi-gear me-1"></i>Admin
+              </a>
+            </li>
+          {% endif %}
+
+          <!-- Zone utilisateur connecté / invité -->
           {% if user.is_authenticated %}
-            <li class="nav-item ms-lg-2">
-              <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-outline-light" type="submit">Déconnexion</button>
-              </form>
+            <li class="nav-item dropdown ms-lg-2">
+              <a class="btn btn-sm btn-outline-light dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle"></i>
+                <span>{{ user.username }}</span>
+                {% if user.is_staff %}
+                  <span class="badge bg-warning text-dark">Personnel</span>
+                {% elif user.profil.est_benevole %}
+                  {% if user.profil.a_acces_circulation %}
+                    <span class="badge bg-success">Bénévole</span>
+                  {% else %}
+                    <span class="badge bg-danger">Bénévole expiré</span>
+                  {% endif %}
+                {% endif %}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li><h6 class="dropdown-header">Profil utilisateur</h6></li>
+                <li><span class="dropdown-item-text text-muted small"><i class="bi bi-hash"></i> ID : {{ user.id }}</span></li>
+                <li><span class="dropdown-item-text text-muted small"><i class="bi bi-person"></i> {{ user.get_full_name|default:user.username }}</span></li>
+                {% if user.profil.date_fin_habilitation %}
+                  <li><span class="dropdown-item-text text-muted small"><i class="bi bi-calendar-x"></i> Fin droits : {{ user.profil.date_fin_habilitation|date:"d/m/Y" }}</span></li>
+                {% endif %}
+                <li><hr class="dropdown-divider"></li>
+                <li class="px-2">
+                  <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger w-100" type="submit">
+                      <i class="bi bi-box-arrow-right me-1"></i>Déconnexion
+                    </button>
+                  </form>
+                </li>
+              </ul>
             </li>
           {% else %}
-            <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-light" href="{% url 'login' %}">Connexion</a></li>
+            <li class="nav-item ms-lg-2">
+              <a class="btn btn-sm btn-light" href="{% url 'login' %}">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Connexion
+              </a>
+            </li>
           {% endif %}
         </ul>
       </div>
