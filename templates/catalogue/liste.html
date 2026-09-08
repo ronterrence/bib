@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Catalogue | Bibliothèque municipale{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+  <div>
+    <span class="text-primary text-uppercase small fw-semibold">Catalogue public</span>
+    <h1 class="display-6 fw-bold mb-1">Trouver un document</h1>
+    <p class="text-secondary mb-0">Consultez la disponibilité des collections en temps réel.</p>
+  </div>
+  <span class="badge rounded-pill text-bg-light border fs-6">{{ page_obj.paginator.count }} résultat{{ page_obj.paginator.count|pluralize }}</span>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <form method="get" action="{% url 'catalogue:liste' %}" class="row g-3">
+      <input type="hidden" name="type" value="{{ type_actif }}">
+      <div class="col-md-6 col-lg-3">
+        <label class="form-label" for="id_titre">Titre</label>
+        <input class="form-control" id="id_titre" name="titre" value="{{ filtres.titre }}" placeholder="Rechercher un titre">
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <label class="form-label" for="id_auteur">Auteur ou éditeur</label>
+        <input class="form-control" id="id_auteur" name="auteur" value="{{ filtres.auteur }}" placeholder="Nom de l'auteur">
+      </div>
+      <div class="col-md-6 col-lg-2">
+        <label class="form-label" for="id_cote">Cote</label>
+        <input class="form-control" id="id_cote" name="cote" value="{{ filtres.cote }}" inputmode="numeric" placeholder="Ex. 125">
+      </div>
+      <div class="col-md-6 col-lg-2">
+        <label class="form-label" for="id_date">Date</label>
+        <input class="form-control" type="date" id="id_date" name="date" value="{{ filtres.date }}">
+      </div>
+      <div class="col-lg-2 d-grid align-self-end">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Rechercher</button>
+      </div>
+      <div class="col-12 d-flex justify-content-end">
+        <a class="small text-decoration-none" href="{% url 'catalogue:liste' %}">Effacer les filtres</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+  <ul class="nav nav-pills flex-nowrap overflow-auto" aria-label="Types de documents">
+    {% for value, label, url in tabs %}
+      <li class="nav-item"><a class="nav-link text-nowrap {% if type_actif == value %}active{% endif %}" href="{{ url }}">{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+  <form method="get" class="d-flex align-items-center gap-2">
+    {% for key, value in filtres.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+    <input type="hidden" name="type" value="{{ type_actif }}">
+    <label for="id_tri" class="text-secondary text-nowrap">Trier par</label>
+    <select class="form-select" id="id_tri" name="tri" onchange="this.form.submit()">
+      <option value="titre" {% if tri == 'titre' %}selected{% endif %}>Titre (A–Z)</option>
+      <option value="auteur" {% if tri == 'auteur' %}selected{% endif %}>Auteur (A–Z)</option>
+      <option value="cote" {% if tri == 'cote' %}selected{% endif %}>Cote croissante</option>
+      <option value="date" {% if tri == 'date' %}selected{% endif %}>Date des périodiques</option>
+    </select>
+  </form>
+</div>
+
+<div class="row g-3">
+  {% for document in page_obj %}
+    <div class="col-12">
+      <article class="card">
+        <div class="card-body p-4">
+          <div class="row align-items-center g-3">
+            <div class="col-lg">
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span class="badge text-bg-light border document-cote">Cote {{ document.cote }}</span>
+                {% if document.livre %}<span class="badge text-bg-primary">Livre</span>
+                {% elif document.journal %}<span class="badge text-bg-primary">Journal</span>
+                {% elif document.cdrom %}<span class="badge text-bg-primary">CD-ROM</span>
+                {% elif document.microfilm %}<span class="badge text-bg-primary">Microfilm</span>{% endif %}
+                <span class="small text-secondary"><i class="bi bi-geo-alt me-1"></i>{{ document.localisation }}</span>
+              </div>
+              <h2 class="h5 mb-1">{{ document.titre }}</h2>
+              <div class="text-secondary">
+                {% if document.livre %}{{ document.livre.auteur }}
+                {% elif document.cdrom %}{{ document.cdrom.auteur_ou_editeur }} · {{ document.cdrom.thematique }}
+                {% elif document.journal %}Parution du {{ document.journal.date_parution|date:"d/m/Y" }}
+                {% elif document.microfilm %}Référence : {{ document.microfilm.document_associe.titre }}{% endif %}
+              </div>
+            </div>
+            <div class="col-lg-auto">
+              {% if document.statut == 'DISPONIBLE' %}
+                <span class="badge bg-success fs-6">Disponible en rayon</span>
+              {% elif document.statut == 'EN_PRET' %}
+                <span class="badge bg-warning text-dark fs-6">En prêt{% if document.retour_prevu %} (retour prévu le {{ document.retour_prevu|date:"d/m/Y" }}){% endif %}</span>
+              {% elif document.statut == 'EN_CONSULTATION' %}
+                <span class="badge bg-info text-dark fs-6">En consultation sur place</span>
+              {% else %}
+                <span class="badge bg-secondary fs-6">Indisponible (Hors service)</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="card"><div class="card-body text-center py-5">
+        <i class="bi bi-search display-5 text-secondary"></i>
+        <h2 class="h5 mt-3">Aucun document trouvé</h2>
+        <p class="text-secondary mb-0">Modifiez vos critères ou effacez les filtres.</p>
+      </div></div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="Pagination du catalogue">
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+      <a class="page-link" href="{% if page_obj.has_previous %}?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}{% else %}#{% endif %}">Précédent</a>
+    </li>
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span></li>
+    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+      <a class="page-link" href="{% if page_obj.has_next %}?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}{% else %}#{% endif %}">Suivant</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

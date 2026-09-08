@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relances du {{ date_impression|date:"d/m/Y" }}</title>
+  <style>
+    :root { color: #172033; font-family: Georgia, "Times New Roman", serif; }
+    body { margin: 0; background: #edf0f4; }
+    .print-toolbar { position: sticky; top: 0; padding: 12px 20px; background: #172033; color: white; text-align: center; }
+    .print-toolbar button { padding: 9px 18px; border: 0; border-radius: 4px; font-weight: 700; cursor: pointer; }
+    .lettre { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 18px auto; padding: 22mm 24mm; background: white; box-shadow: 0 4px 18px rgba(0, 0, 0, .12); page-break-after: always; }
+    .lettre:last-child { page-break-after: auto; }
+    .entete { display: flex; justify-content: space-between; gap: 30px; padding-bottom: 18px; border-bottom: 2px solid #172033; }
+    .ville { font-family: Arial, sans-serif; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+    .reference { font-family: Arial, sans-serif; font-size: 10pt; text-align: right; color: #455168; }
+    .destinataire { width: 75mm; margin: 32mm 0 22mm auto; line-height: 1.5; }
+    .objet { margin: 22px 0; font-family: Arial, sans-serif; }
+    p { font-size: 12pt; line-height: 1.65; }
+    .details { margin: 24px 0; padding: 16px 20px; border-left: 4px solid #9b1c31; background: #f7f3f4; }
+    .signature { margin-top: 35px; text-align: right; }
+    .legal { margin-top: 50px; padding-top: 12px; border-top: 1px solid #aab1bc; font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.4; color: #596273; }
+    @media print {
+      @page { size: A4; margin: 0; }
+      body { background: white; }
+      .print-toolbar { display: none; }
+      .lettre { margin: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-toolbar"><button type="button" onclick="window.print()">Imprimer les lettres</button></div>
+  {% for item in lettres %}
+    <article class="lettre">
+      <header class="entete">
+        <div>
+          <div class="ville">Bibliothèque municipale</div>
+          <div>Service des prêts et collections</div>
+          <div>Hôtel de Ville</div>
+        </div>
+        <div class="reference">
+          <div>Relance n°{{ item.relance.pk }}</div>
+          <div>Émise le {{ item.relance.date_emission|date:"d/m/Y" }}</div>
+          <div>Lecteur n°{{ item.pret.adherent.numero_lecteur }}</div>
+        </div>
+      </header>
+
+      <address class="destinataire">
+        <strong>{{ item.pret.adherent.nom|upper }} {{ item.pret.adherent.prenom }}</strong><br>
+        {{ item.pret.adherent.adresse|linebreaksbr }}
+      </address>
+
+      <div class="objet"><strong>Objet : demande de restitution d'un document en retard</strong></div>
+      <p>Madame, Monsieur,</p>
+      <p>Sauf erreur de notre part, le document ci-dessous, emprunté auprès de la bibliothèque municipale, n'a pas été restitué à la date prévue.</p>
+
+      <div class="details">
+        <strong>{{ item.pret.document.titre }}</strong><br>
+        Cote : {{ item.pret.document.cote }}<br>
+        Date d'emprunt : {{ item.pret.date_emprunt|date:"d/m/Y" }}<br>
+        Date de retour prévue : {{ item.date_echeance|date:"d/m/Y" }}<br>
+        Retard constaté : {{ item.jours_retard }} jour{{ item.jours_retard|pluralize }}
+      </div>
+
+      <p>Nous vous demandons de bien vouloir restituer ce document dans les meilleurs délais au guichet de la bibliothèque. Si cette restitution a déjà été effectuée, veuillez ne pas tenir compte du présent courrier.</p>
+      <p>Nous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</p>
+      <p class="signature">Le service de la bibliothèque municipale</p>
+
+      <footer class="legal">Avis officiel de restitution — La conservation d'un document au-delà de la durée autorisée peut entraîner la suspension temporaire du droit d'emprunt. Pour toute question, contactez la bibliothèque en indiquant votre numéro de lecteur et la cote du document.</footer>
+    </article>
+  {% endfor %}
+</body>
+</html>
