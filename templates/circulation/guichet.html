@@ -27,18 +27,38 @@
   <div class="card-body p-4">
     <div class="tab-content">
       <div class="tab-pane fade {% if active_tab == 'pret' %}show active{% endif %}" id="pret" role="tabpanel">
-        <form method="post" novalidate>
+        <form method="post" novalidate id="pretForm" data-adherent-url="{% url 'circulation:resume_adherent' 0 %}" data-document-url="{% url 'circulation:resume_document' 0 %}">
           {% csrf_token %}
           <input type="hidden" name="action" value="pret">
           {% if pret_form.non_field_errors %}<div class="alert alert-danger">{{ pret_form.non_field_errors }}</div>{% endif %}
           <div class="row g-3">
-            {% for field in pret_form %}
-              <div class="{% if field.name == 'numero_lecteur' or field.name == 'cote' %}col-md-6{% else %}col-md-4{% endif %}">
-                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-              </div>
-            {% endfor %}
+            <div class="col-md-6">
+              <label class="form-label" for="{{ pret_form.numero_lecteur.id_for_label }}">{{ pret_form.numero_lecteur.label }}</label>
+              {{ pret_form.numero_lecteur }}
+              {% for error in pret_form.numero_lecteur.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              <div id="resumeAdherent" class="form-text" aria-live="polite">Saisissez un numéro pour afficher le quota et la cotisation.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="{{ pret_form.cote.id_for_label }}">{{ pret_form.cote.label }}</label>
+              {{ pret_form.cote }}
+              {% for error in pret_form.cote.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              <div id="resumeDocument" class="form-text" aria-live="polite">Saisissez une cote pour identifier le support.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="{{ pret_form.type_pret.id_for_label }}">{{ pret_form.type_pret.label }}</label>
+              {{ pret_form.type_pret }}
+              {% for error in pret_form.type_pret.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4 d-none" id="champCaution">
+              <label class="form-label" for="{{ pret_form.montant_caution.id_for_label }}">{{ pret_form.montant_caution.label }}</label>
+              {{ pret_form.montant_caution }}
+              {% for error in pret_form.montant_caution.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4 d-none" id="champEcran">
+              <label class="form-label" for="{{ pret_form.poste_ecran.id_for_label }}">{{ pret_form.poste_ecran.label }}</label>
+              {{ pret_form.poste_ecran }}
+              {% for error in pret_form.poste_ecran.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
           </div>
           <button class="btn btn-primary mt-4" type="submit"><i class="bi bi-check2-circle me-1"></i>Valider le prêt</button>
         </form>
@@ -60,6 +80,25 @@
     </div>
   </div>
 </div>
+
+{% if retour_feedback and retour_feedback.remboursement %}
+<div class="modal fade" id="modalRemboursement" tabindex="-1" aria-labelledby="titreRemboursement" aria-modal="true" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-warning">
+      <div class="modal-header bg-warning-subtle">
+        <h2 class="modal-title fs-5" id="titreRemboursement"><i class="bi bi-exclamation-triangle-fill me-2"></i>Remboursement obligatoire</h2>
+      </div>
+      <div class="modal-body">
+        <p class="fs-5 mb-2"><strong>Rembourser la caution de {{ retour_feedback.remboursement }} € à l'adhérent {{ retour_feedback.adherent }}.</strong></p>
+        {% if retour_feedback.jours_retard %}<p class="mb-0 text-danger">Document rendu avec {{ retour_feedback.jours_retard }} jour{{ retour_feedback.jours_retard|pluralize }} de retard.</p>{% endif %}
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-warning" data-bs-dismiss="modal">Remboursement pris en compte</button></div>
+    </div>
+  </div>
+</div>
+{% elif retour_feedback and retour_feedback.jours_retard %}
+<div class="alert alert-warning mt-4" role="alert">Document rendu avec {{ retour_feedback.jours_retard }} jour{{ retour_feedback.jours_retard|pluralize }} de retard.</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -67,5 +106,45 @@
   document.querySelectorAll('#pret input, #pret select, #retour input').forEach((field) => {
     field.classList.add(field.tagName === 'SELECT' ? 'form-select' : 'form-control');
   });
+  const pretForm = document.getElementById('pretForm');
+  const numeroInput = document.getElementById('id_numero_lecteur');
+  const coteInput = document.getElementById('id_cote');
+  const resumeAdherent = document.getElementById('resumeAdherent');
+  const resumeDocument = document.getElementById('resumeDocument');
+  const champCaution = document.getElementById('champCaution');
+  const champEcran = document.getElementById('champEcran');
+  const endpoint = (template, value) => template.replace('/0/', `/${value}/`);
+
+  async function chargerAdherent() {
+    if (!numeroInput.value) return;
+    const response = await fetch(endpoint(pretForm.dataset.adherentUrl, numeroInput.value));
+    if (!response.ok) { resumeAdherent.textContent = 'Adhérent introuvable.'; return; }
+    const data = await response.json();
+    const cotisation = data.cotisation_a_jour ? 'cotisation à jour' : 'cotisation non à jour';
+    resumeAdherent.textContent = `${data.nom} — ${data.emprunts_en_cours} / ${data.quota} emprunts — ${cotisation}`;
+    resumeAdherent.className = `form-text ${data.peut_emprunter ? 'text-success' : 'text-danger'}`;
+  }
+
+  async function chargerDocument() {
+    if (!coteInput.value) return;
+    const response = await fetch(endpoint(pretForm.dataset.documentUrl, coteInput.value));
+    if (!response.ok) { resumeDocument.textContent = 'Document introuvable.'; return; }
+    const data = await response.json();
+    resumeDocument.textContent = `${data.titre} — ${data.type.toUpperCase()} — ${data.disponible ? 'disponible' : 'indisponible'}`;
+    resumeDocument.className = `form-text ${data.disponible ? 'text-success' : 'text-danger'}`;
+    champCaution.classList.toggle('d-none', data.type !== 'cdrom');
+    champEcran.classList.toggle('d-none', !data.ecran_requis);
+    if (data.caution_requise) {
+      document.getElementById('id_montant_caution').value = data.caution_requise;
+    }
+  }
+
+  numeroInput?.addEventListener('change', chargerAdherent);
+  coteInput?.addEventListener('change', chargerDocument);
+  if (numeroInput?.value) chargerAdherent();
+  if (coteInput?.value) chargerDocument();
+  {% if retour_feedback and retour_feedback.remboursement %}
+    new bootstrap.Modal(document.getElementById('modalRemboursement'), {backdrop: 'static', keyboard: false}).show();
+  {% endif %}
 </script>
 {% endblock %}

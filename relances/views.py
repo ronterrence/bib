@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
@@ -8,13 +6,13 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 
-from circulation.models import Pret
+from circulation.models import DUREE_PRET, Pret
 
 from .models import CanalRelance, Relance
 
 
 def prets_en_retard():
-    limite = timezone.now() - timedelta(days=28)
+    limite = timezone.now() - DUREE_PRET
     return Pret.objects.filter(
         date_restitution__isnull=True,
         date_emprunt__lt=limite,
@@ -75,7 +73,7 @@ class ImprimerLettresView(StaffRequiredMixin, View):
         lettres = []
         with transaction.atomic():
             for pret in prets:
-                relance = Relance.objects.create(
+                relance = Relance.generer_lettre(
                     pret=pret,
                     emetteur=request.user,
                     canal=canal,
@@ -85,7 +83,7 @@ class ImprimerLettresView(StaffRequiredMixin, View):
                         "pret": pret,
                         "relance": relance,
                         "jours_retard": (maintenant - pret.date_emprunt).days - 28,
-                        "date_echeance": pret.date_emprunt + timedelta(days=28),
+                        "date_echeance": pret.date_echeance,
                     }
                 )
 

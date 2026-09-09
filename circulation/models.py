@@ -10,6 +10,8 @@ from django.utils import timezone
 from adherents.models import Adherent
 from catalogue.models import Document, StatutDocument
 
+DUREE_PRET = timedelta(days=28)
+
 
 class TypePret(models.TextChoices):
     DOMICILE = "DOMICILE", "Prêt à domicile"
@@ -92,7 +94,11 @@ class Pret(models.Model):
     def est_en_retard(self):
         if self.date_restitution:
             return False
-        return timezone.now() > self.date_emprunt + timedelta(days=28)
+        return timezone.now() > self.date_echeance
+
+    @property
+    def date_echeance(self):
+        return self.date_emprunt + DUREE_PRET
 
     def clean(self):
         super().clean()

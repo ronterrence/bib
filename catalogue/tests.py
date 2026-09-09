@@ -1,9 +1,10 @@
 from datetime import date
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import CdRom, Journal, Livre, StatutDocument
+from .models import CdRom, Journal, Livre, MotifHorsService, StatutDocument
 
 
 class CatalogueViewTestCase(TestCase):
@@ -47,6 +48,17 @@ class CatalogueViewTestCase(TestCase):
 
         self.assertContains(response, "Disponible en rayon")
         self.assertContains(response, "En rayon")
+        self.assertContains(response, "Au guichet")
+
+    def test_mise_hors_service_conserve_le_motif(self):
+        self.livre.mettre_hors_service(MotifHorsService.PERDU)
+        self.livre.refresh_from_db()
+
+        self.assertEqual(self.livre.statut, StatutDocument.HORS_SERVICE)
+        self.assertTrue(self.livre.est_hors_service)
+        self.assertEqual(self.livre.motif_hors_service, MotifHorsService.PERDU)
+        with self.assertRaises(ValidationError):
+            self.journal.mettre_hors_service("INCONNU")
 
     def test_document_hors_service_affiche_le_badge_indisponible(self):
         self.livre.statut = StatutDocument.HORS_SERVICE

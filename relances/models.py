@@ -1,7 +1,9 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
-from circulation.models import Pret
+from circulation.models import DUREE_PRET, Pret
 
 
 class CanalRelance(models.TextChoices):
@@ -34,3 +36,11 @@ class Relance(models.Model):
 
     def __str__(self):
         return f"Relance {self.pk} - prêt {self.pret_id}"
+
+    @classmethod
+    def generer_lettre(cls, *, pret, emetteur=None, canal=CanalRelance.COURRIER):
+        if canal not in CanalRelance.values:
+            raise ValidationError({"canal": "Le canal de relance est invalide."})
+        if pret.date_restitution or pret.date_emprunt >= timezone.now() - DUREE_PRET:
+            raise ValidationError("Ce prêt n'est pas éligible à une relance.")
+        return cls.objects.create(pret=pret, emetteur=emetteur, canal=canal)

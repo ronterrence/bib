@@ -1,11 +1,18 @@
 from django.contrib import admin
 
-from .models import CdRom, Journal, Livre, Microfilm, StatutDocument
+from .models import (
+    CdRom,
+    Journal,
+    Livre,
+    Microfilm,
+    MotifHorsService,
+    StatutDocument,
+)
 
 
 class ImmutableModelAdmin(admin.ModelAdmin):
     readonly_fields = ("cote", "date_acquisition")
-    actions = ("marquer_hors_service",)
+    actions = ("marquer_hors_service", "marquer_perdu", "marquer_vole")
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -15,11 +22,30 @@ class ImmutableModelAdmin(admin.ModelAdmin):
         updated = queryset.update(
             statut=StatutDocument.HORS_SERVICE,
             est_hors_service=True,
+            motif_hors_service=MotifHorsService.AUTRE,
         )
         self.message_user(
             request,
             f"{updated} document(s) marqué(s) hors service.",
         )
+
+    @admin.action(description="Marquer les documents sélectionnés comme perdus")
+    def marquer_perdu(self, request, queryset):
+        updated = queryset.update(
+            statut=StatutDocument.HORS_SERVICE,
+            est_hors_service=True,
+            motif_hors_service=MotifHorsService.PERDU,
+        )
+        self.message_user(request, f"{updated} document(s) marqué(s) perdu(s).")
+
+    @admin.action(description="Marquer les documents sélectionnés comme volés")
+    def marquer_vole(self, request, queryset):
+        updated = queryset.update(
+            statut=StatutDocument.HORS_SERVICE,
+            est_hors_service=True,
+            motif_hors_service=MotifHorsService.VOLE,
+        )
+        self.message_user(request, f"{updated} document(s) marqué(s) volé(s).")
 
 
 @admin.register(Livre)

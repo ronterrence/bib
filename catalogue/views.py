@@ -116,9 +116,9 @@ def liste(request):
             else None
         )
         document.localisation = (
-            "En rayon"
-            if document.statut == StatutDocument.DISPONIBLE
-            else "Au guichet"
+            "Au guichet"
+            if hasattr(document, "cdrom") or hasattr(document, "microfilm")
+            else "En rayon"
         )
 
     tabs = [

@@ -1,10 +1,33 @@
 from django.contrib import admin
 
-from .models import Adherent, ProfilUtilisateur
+from circulation.models import Pret
+
+from .models import Adherent
+
+
+class PretInline(admin.TabularInline):
+    model = Pret
+    fields = (
+        "document",
+        "type_pret",
+        "date_emprunt",
+        "date_restitution",
+        "montant_caution",
+        "caution_restituee",
+        "poste_ecran",
+    )
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    ordering = ("-date_emprunt",)
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
+    inlines = (PretInline,)
     readonly_fields = ("numero_lecteur",)
     list_display = (
         "numero_lecteur",
@@ -25,20 +48,3 @@ class AdherentAdmin(admin.ModelAdmin):
     @admin.display(description="Emprunts en cours")
     def emprunts_en_cours(self, obj):
         return obj.nb_emprunts_en_cours()
-
-
-@admin.register(ProfilUtilisateur)
-class ProfilUtilisateurAdmin(admin.ModelAdmin):
-    list_display = (
-        "user",
-        "est_benevole",
-        "date_fin_habilitation",
-        "acces_circulation",
-    )
-    list_filter = ("est_benevole", "date_fin_habilitation")
-    search_fields = ("user__username", "user__first_name", "user__last_name")
-    autocomplete_fields = ("user",)
-
-    @admin.display(boolean=True, description="Accès circulation")
-    def acces_circulation(self, obj):
-        return obj.a_acces_circulation

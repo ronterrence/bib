@@ -15,6 +15,12 @@ class StatutDocument(models.TextChoices):
     HORS_SERVICE = "HORS_SERVICE", "Hors service"
 
 
+class MotifHorsService(models.TextChoices):
+    PERDU = "PERDU", "Perdu"
+    VOLE = "VOLE", "Volé"
+    AUTRE = "AUTRE", "Autre"
+
+
 class DocumentQuerySet(models.QuerySet):
     def delete(self):
         raise ProtectedError(
@@ -33,6 +39,12 @@ class Document(models.Model):
     )
     date_acquisition = models.DateField(auto_now_add=True)
     est_hors_service = models.BooleanField(default=False)
+    motif_hors_service = models.CharField(
+        max_length=20,
+        choices=MotifHorsService.choices,
+        null=True,
+        blank=True,
+    )
 
     objects = DocumentQuerySet.as_manager()
 
@@ -51,6 +63,18 @@ class Document(models.Model):
         raise ProtectedError(
             "Les fiches documents ne peuvent jamais être supprimées.",
             {self},
+        )
+
+    def mettre_hors_service(self, motif=MotifHorsService.AUTRE):
+        if motif not in MotifHorsService.values:
+            raise ValidationError(
+                {"motif_hors_service": "Le motif de mise hors service est invalide."}
+            )
+        self.statut = StatutDocument.HORS_SERVICE
+        self.est_hors_service = True
+        self.motif_hors_service = motif
+        self.save(
+            update_fields=["statut", "est_hors_service", "motif_hors_service"]
         )
 
     def __str__(self):

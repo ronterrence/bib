@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from adherents.models import Adherent, ProfilUtilisateur
+from adherents.models import Adherent
 from catalogue.models import (
     CdRom,
     Document,
@@ -18,6 +18,7 @@ from catalogue.models import (
     StatutDocument,
 )
 from circulation.models import EcranLecture, Pret, TypePret
+from core.models import ProfilUtilisateur
 
 
 class PretRulesTestCase(TestCase):
@@ -268,6 +269,12 @@ class GuichetViewTestCase(TestCase):
             fetch_redirect_response=False,
         )
 
+    def test_ancienne_url_redirige_vers_le_guichet_canonique(self):
+        response = self.client.get("/circulation/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.url)
+
     def test_utilisateur_sans_habilitation_recoit_403(self):
         utilisateur = get_user_model().objects.create_user(
             username="sans-acces",
@@ -324,6 +331,46 @@ class GuichetViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Pret.objects.filter(date_restitution__isnull=True).count(), 1)
         self.assertContains(response, "Prêt enregistré")
+
+    def test_sixieme_pret_est_refuse_par_le_guichet(self):
+        self.client.force_login(self.user)
+        for index in range(5):
+            Pret.objects.create(
+                adherent=self.adherent,
+                document=Livre.objects.create(titre=f"Quota {index}", auteur="Auteur"),
+                type_pret=TypePret.DOMICILE,
+            )
+
+        response = self.client.post(
+            self.url,
+            {
+                "action": "pret",
+                "numero_lecteur": self.adherent.numero_lecteur,
+                "cote": self.livre.cote,
+                "type_pret": TypePret.DOMICILE,
+                "montant_caution": "0.00",
+                "poste_ecran": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "quota maximum de 5")
+        self.assertEqual(Pret.objects.filter(date_restitution__isnull=True).count(), 5)
+
+    def test_api_resume_adherent_et_document(self):
+        self.client.force_login(self.user)
+
+        adherent_response = self.client.get(
+            reverse("circulation:resume_adherent", args=[self.adherent.pk])
+        )
+        document_response = self.client.get(
+            reverse("circulation:resume_document", args=[self.livre.pk])
+        )
+
+        self.assertEqual(adherent_response.json()["quota"], 5)
+        self.assertTrue(adherent_response.json()["cotisation_a_jour"])
+        self.assertEqual(document_response.json()["type"], "livre")
+        self.assertTrue(document_response.json()["disponible"])
 
     def test_retour_cdrom_affiche_le_message_de_remboursement(self):
         cdrom = CdRom.objects.create(

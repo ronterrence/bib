@@ -5,9 +5,10 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from adherents.models import Adherent, ProfilUtilisateur
+from adherents.models import Adherent
 from catalogue.models import Livre
 from circulation.models import Pret, TypePret
+from core.models import ProfilUtilisateur
 
 from .models import CanalRelance, Relance
 
@@ -98,6 +99,7 @@ class RelancesViewsTestCase(TestCase):
         self.assertContains(response, "12 rue des Lecteurs")
         self.assertContains(response, "Livre non restitué")
         self.assertContains(response, "Avis officiel de restitution")
+        self.assertEqual(pret.date_echeance, pret.date_emprunt + timedelta(days=28))
 
     def test_generation_ignore_un_pret_non_eligible(self):
         pret_recent = self.creer_pret("Livre récent", 10)
